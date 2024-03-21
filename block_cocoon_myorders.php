@@ -18,6 +18,8 @@ include_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot. '/theme/edumy/ccn/course_handler/ccn_course_handler.php');
 require_once($CFG->dirroot. '/theme/edumy/ccn/block_handler/ccn_block_handler.php');
 
+include_once($CFG->dirroot . '/theme/edumy/ccn/course_handler/ccn_course_handler.php');
+
 class block_cocoon_myorders extends block_list {
     function init() {
         $this->title = get_string('pluginname', 'block_cocoon_myorders');
@@ -74,11 +76,19 @@ class block_cocoon_myorders extends block_list {
               $ccnCourseHandler = new ccnCourseHandler();
               $ccnCourse = $ccnCourseHandler->ccnGetCourseDetails($course->id);
 
-
+              
 
               $course = new core_course_list_element($course);
-              $coursecontext = context_course::instance($course->id);
+         //     $coursecontext = context_course::instance($course->id);
               $enrolinstances = enrol_get_instances($course->id, true);
+
+              $enrollmentStartDate = $course->startdate;
+               // Convert the enrollment start date to a human-readable format
+    $formattedEnrollmentStartDate = userdate($enrollmentStartDate, get_string('strftimedatefullshort', 'langconfig'), 0);
+    
+    // Now you can use $formattedEnrollmentStartDate in your code
+    // For example, you can echo it to display the enrollment date
+   // echo "Enrollment Date: " . $formattedEnrollmentStartDate . "<br>";
 
               $ccnmethods = array_column($enrolinstances, null, "enrol");
               
@@ -122,7 +132,7 @@ class block_cocoon_myorders extends block_list {
               // $ccn_course_title = $course->fullname;
               // $ccn_course_start_date = $course->startdate;
               // $ccn_course_link = $CFG->wwwroot . '/course/view.php?id=' . $course->id;
-              $ccn_receipt_id = 'receiptID-' . $course->id;
+              $ccn_receipt_id = 'ARKAN' . date('Ymd') . $course->id;
               $ccn_site_name = $SITE->fullname;
               $ccn_site_url = $CFG->wwwroot;
 
@@ -136,6 +146,7 @@ class block_cocoon_myorders extends block_list {
               $ccn_customer_id = strtoupper(trim($SITE->fullname . $USER->id));
               $ccn_customer_username = $USER->username;
               $ccn_customer_email = $USER->email;
+              $ccn_enrol_date = $formattedEnrollmentStartDate;
 
               $ccn_sum+= $cost;
               $ccn_courses_i++;
@@ -158,6 +169,38 @@ class block_cocoon_myorders extends block_list {
               //   }
               // }
 
+// var_dump($USER);
+$soldToContent = '
+<div class="soldTo">
+    <h4>Sold To</h4>';
+
+// Check if firstname is set and not empty
+if (isset($USER->firstname) && !empty($USER->firstname)) {
+    $soldToContent .= $USER->firstname;
+}
+
+// Check if both firstname and lastname are set and not empty
+if (isset($USER->firstname) && !empty($USER->firstname) && isset($USER->lastname) && !empty($USER->lastname)) {
+    $soldToContent .= ' ' . $USER->lastname;
+}
+
+// Check if email is set and not empty
+if (isset($USER->email) && !empty($USER->email)) {
+    $soldToContent .= '<br>' . $USER->email;
+}
+
+// Check if address is set and not empty
+if (isset($USER->address) && !empty($USER->address)) {
+    $soldToContent .= '<br>' . $USER->address;
+}
+
+// Check if ccnAddressZip is set and not empty
+if (isset($ccnAddressZip) && !empty($ccnAddressZip)) {
+    $soldToContent .= '<br>Post Box No: ' . $ccnAddressZip;
+}
+
+$soldToContent .= '
+</div>';
 
               $order .= '
               <tr>
@@ -168,48 +211,138 @@ class block_cocoon_myorders extends block_list {
 					    			<li class="list-inline-item"><a class="cart_title" href="'.$ccnCourse->url.'">'.$ccnCourse->fullName.'</a></li>
 					    		</ul>
 					    	</th>
-					    	<td>'.userdate($ccnCourse->startDate, get_string('strftimedatefullshort', 'langconfig'), 0).'</td>
+					    	<td>'. $formattedEnrollmentStartDate .'</td>
 					    	<td>'.get_string('completed', 'theme_edumy').'</td>
 					    	<td class="cart_total">'. $ccnCourse->price .'</td>
-					    	<td class="text-thm tdu"><a data-ccn-receipt-id="'.$ccn_receipt_id.'" href="#'.$ccn_receipt_id.'" class="ccn_receipt_handler">'.get_string('receipt', 'theme_edumy').'</a></td>
+					    	<td class="text-thm tdu"><a data-ccn-receipt-id="'.$ccn_receipt_id.'" href="#'.$ccn_receipt_id.'" class="ccn_receipt_handler">'.get_string('receipt', 'theme_edumy').'</a>
+                <a href="#" onclick="printReceipt('. $ccn_receipt_id .')" class="ccn_receipt_handler">Download</a>
+
+
+                </td>
                 <td id="'.$ccn_receipt_id.'" style="display:none;">
                   <style>
                     @import url(https://fonts.googleapis.com/css?family=Nunito:400,500,600,700|Open+Sans);
                     .ccnReceiptWrapper * {font-family: "Nunito", Arial, Helvetica, sans-serif;}
                     .ccnReceiptWrapper {padding: 15px 40px;}
-                    .ccnReceiptWrapper table, .ccnReceiptWrapper th, .ccnReceiptWrapper td {padding: 6px 10px;border:1px solid #ddd;}
+                    .ccnReceiptWrapper table, .ccnReceiptWrapper th, .ccnReceiptWrapper td {padding: 6px 10px;}
                     .ccnReceiptWrapper table {margin: 20px 0;}
                     .ccnReceiptWrapper .receiptProvider {line-height: 1.3;font-size: 12px;}
                     .ccnReceiptWrapper .receiptProviderName {font-weight: bold;font-size: 15px;}
-                    .ccnReceiptWrapper .receiptProviderAddress, .ccnReceiptWrapper .receiptProviderDetails {line-height: 1.3;font-size: 12px;padding: 10px 0 0 0;border-top: 1px solid #ddd;margin: 10px 0 0 0;}
+                    .ccnReceiptWrapper .receiptProviderAddress, .ccnReceiptWrapper .receiptProviderDetails {line-height: 1.3;font-size: 12px;padding: 1px 0 0 0;margin: 1px 0 0 0;}
                   </style>
-                  <div class="ccnReceiptWrapper" style="font-family: Arial, Helvetica, sans-serif;">
-                    <h1>'.$ccn_site_name.'</h1>
-                    <h1><img src= "'.$headerlogo3.'" alt="Arkan TRC" /></h1>
+                  <div class="ccnReceiptWrapper" style="font-family: Arial, Helvetica, sans-serif; border: 1px solid #ddd; width: 800px; max-width: 90%; margin: auto;" id="'.$ccn_receipt_id.'">
+                  <table style="border-collapse:collapse; border: none" width="100%">
+    <tr>
+       <td>
+       <table style="border-collapse:collapse; border: none; margin-bottom:0" width="100%"> 
+        <tr>
+        <td style="border: none;padding: 6px 10px;">
+        <h1 style="margin-bottom:0; padding-bottom:0"><img style="width:120px; height:120px" src="'.$headerlogo3.'" alt="Arkan TRC" /></h1>
+      
+    </td>
+    <td style="border: none;padding: 6px 10px; float:right">
+        <h2 style="margin-bottom:0; padding-bottom:0;">Receipt</h2>
+        <h4 style="margin-bottom:0; padding-bottom:0; margin-top:0">Receipt for Cart - '.$formattedEnrollmentStartDate.'</h4>
+        <h5 style="margin-bottom:0; padding-bottom:0;margin-top:0">Receipt No - '.$ccn_receipt_id.'</h5>
+        <h5 style="margin-bottom:0; padding-bottom:0;margin-top:0">TRN: 104037762200003</h5>
+        
+    </td>
+        </tr>
+       </table>
+       </td>
+    </tr>
+    <tr>
+    <td>
+    <h4 style="margin-bottom:0; padding-bottom:0">ARKAN FOR TRAINING RESEARCHES AND MANAGEMENT CONSULTANCY - SOLE PROPRIETORSHIP L.L.C</h4>
+   
+    </td>
+    </tr>
+    <tr>
+    <td>
+    <table style="border-collapse:collapse; border: none; margin-bottom:0" width="100%">
+      <tr>
+        <td>
+        <div class="receiptProviderAddress">
+        '.$ccnAddressLine1.'<br>
+        '.$ccnAddressLine2.', '.$ccnAddressLine3.'<br>
+        Post Box No: '.$ccnAddressZip.'<br>
+    </div>
+    </td>
+    <td>
+    <div class="receiptProviderDetails">
+                      '.$ccnAddressPhone.'<br>
+                      '.$ccnAddressEmail.'<br>
+                    </div>
+    </td>
+      </tr>
+    </table>
+    </td>
+    </tr>
+    <tr style="border-top: 1px solid #ddd;" border="0">
+      <td border="0" style="border:none"></td>
+      <td border="0" style="border:none"></td>
+    </tr>
+    <tr border="0" style="border:none">
+      <td border="0" style="border:none">'.$soldToContent.'</td>
+      <td border="0" style="border:none"></td>
+    </tr>
+    <tr>
+                <td><button onclick="printReceipt('.$ccn_receipt_id.')">Download/Print</button></td>
+    </tr>
+</table>
+<script>
+
+function printReceipt(receiptId) {
+      console.log(receiptId)
+        // Get the receipt wrapper element
+        var receiptWrapper = document.getElementById(receiptId);
+
+        // Clone the receipt content
+        var clonedReceipt = receiptId.cloneNode(true);
+
+        // Create a new window to display the cloned receipt content
+        var newWindow = window.open("", "_blank");
+        newWindow.document.body.appendChild(clonedReceipt);
+
+        // If you want to print automatically, you can uncomment the following line
+         newWindow.print();
+
+        // If you want to download as PDF, you can use a library like jsPDF
+        // For example:
+        // var pdf = new jsPDF();
+        // pdf.addHTML(clonedReceipt, function() {
+        //     pdf.save("receipt.pdf");
+        // });
+    }
+</script>
+
+                    
+                    
                     <h2>'.get_string('your_order', 'theme_edumy').'</h2>
-                    <table style="border-collapse:collapse; border: 1px solid #ddd;">
+                    <table style="border-collapse:collapse; border: 1px solid #ddd;" width="100%">
+                      <tr>
+                        <th style="border: 1px solid #ddd;padding: 6px 10px;">Item</th>
+                        <td style="border: 1px solid #ddd;padding: 6px 10px;">Ordered</td>
+                        <td style="text-transform:capitalize;border: 1px solid #ddd;padding: 6px 10px;">'.get_string('payment_method', 'theme_edumy') .' </td>
+                        <td style="border: 1px solid #ddd;padding: 6px 10px;">Price</td>
+                      </tr>
                       <tr>
                         <th style="border: 1px solid #ddd;padding: 6px 10px;">'.$ccnCourse->fullName.'</th>
+                        <th style="border: 1px solid #ddd;padding: 6px 10px;">'. $formattedEnrollmentStartDate .'</th>
+                        <td style="text-transform:capitalize;border: 1px solid #ddd;padding: 6px 10px;">'. $ccn_enrolment_method .'</td>
                         <td style="border: 1px solid #ddd;padding: 6px 10px;">'. $ccnCourse->price .'</td>
-                        <td style="text-transform:capitalize;border: 1px solid #ddd;padding: 6px 10px;">'.get_string('payment_method', 'theme_edumy') .' '. $ccn_enrolment_method .'</td>
                       </tr>
                     </table>
                     <div class="receiptProvider">
                     <div class="receiptProviderName">'.$ccn_site_name.'</div>
-                    <div class="receiptProviderAddress">
-                      '.$ccnAddressLine1.'<br>
-                      '.$ccnAddressLine2.'<br>
-                      '.$ccnAddressLine3.'<br>
-                      '.$ccnAddressZip.'<br>
-                    </div>
-                    <div class="receiptProviderDetails">
-                      '.$ccnAddressPhone.'<br>
-                      '.$ccnAddressEmail.'<br>
-                    </div>
+                    
+                    
                     </div>
                   </div>
                 </td>
-					    </tr>';
+					    </tr>
+              
+              ';
 
               $payment .= '<tr>
 					    	<th scope="row">
@@ -217,7 +350,7 @@ class block_cocoon_myorders extends block_list {
 					    			<li class="list-inline-item"><a class="cart_title" href="'.$ccnCourse->url.'">'.$ccnCourse->fullName.'</a></li>
 					    		</ul>
 					    	</th>
-					    	<td>'.userdate($ccnCourse->startDate, get_string('strftimedatefullshort', 'langconfig'), 0).'</td>
+					    	<td>'. $formattedEnrollmentStartDate .'</td>
 					    	<td>'.$ccnCourse->courseId.'</td>
                 <td></td>
 					    	<td class="cart_total">'. $ccnCourse->price .'</td>
@@ -240,7 +373,7 @@ class block_cocoon_myorders extends block_list {
 										  	<thead>
 											    <tr class="carttable_row">
 											    	<th class="cartm_title">'.get_string('item', 'theme_edumy').'</th>
-											    	<th class="cartm_title">'.get_string('date', 'theme_edumy').'</th>
+											    	<th class="cartm_title">'.get_string('enrol_date', 'theme_edumy').'</th>
 											    	<th class="cartm_title">'.get_string('status', 'theme_edumy').'</th>
 											    	<th class="cartm_title">'.get_string('total', 'theme_edumy').'</th>
 											    	<th class="cartm_title">'.get_string('action', 'theme_edumy').'</th>
@@ -272,7 +405,7 @@ class block_cocoon_myorders extends block_list {
 										  	<thead>
 											    <tr class="carttable_row">
 											    	<th class="cartm_title">'.get_string('item', 'theme_edumy').'</th>
-											    	<th class="cartm_title">'.get_string('date', 'theme_edumy').'</th>
+											    	<th class="cartm_title">'.get_string('enrol_date', 'theme_edumy').'</th>
 											    	<th class="cartm_title">'.get_string('course_id', 'theme_edumy').'</th>
                             <th class="cartm_title"></th>
 											    	<th class="cartm_title">'.get_string('price', 'theme_edumy').'</th>
@@ -295,7 +428,7 @@ class block_cocoon_myorders extends block_list {
                             <td></td>
 											    	<td></td>
 											    	<td class="cart_total color-dark fz18 pt10">'.get_string('total', 'theme_edumy').'</td>
-											    	<td class="color-gray2 fz15 pt10">'. get_string('currency_symbol', 'theme_edumy') . $ccn_sum . get_string('currency', 'theme_edumy') .'</td>
+											    	<td class="color-gray2 fz15 pt10">'. get_string('currency_symbol', 'theme_edumy') . $ccn_sum .'</td>
 											    </tr>
 										  	</tbody>
 										</table>
